@@ -33,7 +33,7 @@ public class RowMapperTests
     {
         // Arrange
         var mapper = new RowMapper<TestModel>();
-        var rowData = new object[] { "John Doe", 30, 50000.50, "true", new DateTime(2023, 1, 15), 180.3 };
+        var rowData = new object[] { "John Doe", 30, 50000.50m, "true", new DateTime(2023, 1, 15), 180.3 };
         const int rowNumber = 2;
 
         // Act
@@ -127,5 +127,43 @@ public class RowMapperTests
         var model = result.Result;
         Assert.Equal(75000.25m, model.Salary);
         Assert.Equal(180.3, model.Height);
+    }
+
+    private record TestModelWithGuid
+    {
+        [Column(1)]
+        public Guid Id { get; set; }
+    }
+
+    [Fact]
+    public void Map_WithCustomGuidConverter_ParsesCorrectly()
+    {
+        // Arrange
+        var customConverters = new Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>>
+        {
+            {
+                typeof(Guid), (val, _) =>
+                {
+                    if (val is string s && Guid.TryParse(s, out var guid))
+                    {
+                        return (guid, true);
+                    }
+                    return (default(Guid), false);
+                }
+            }
+        };
+        
+        var mapper = new RowMapper<TestModelWithGuid>(customConverters: customConverters);
+        var testGuid = Guid.NewGuid();
+        var rowData = new object[] { testGuid.ToString() };
+        const int rowNumber = 7;
+
+        // Act
+        var result = mapper.Map(rowData, rowNumber);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Result);
+        Assert.Equal(testGuid, result.Result.Id);
     }
 }

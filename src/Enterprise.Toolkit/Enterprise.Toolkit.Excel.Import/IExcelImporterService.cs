@@ -22,6 +22,7 @@ public interface IExcelImporterService<T> where T : class, new()
     /// Processes an Excel file from a stream, providing real-time progress updates.
     /// </summary>
     /// <param name="stream">The stream containing the Excel file (.xlsx).</param>
+    /// <param name="enableLogging">Optional: If set to false (default), logging messages from the service will be suppressed. Set to true to enable logging.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>
     /// A tuple containing:
@@ -30,5 +31,6 @@ public interface IExcelImporterService<T> where T : class, new()
     /// </returns>
     (Task<ImportResult> CompletionTask, IObservable<ImportProgressReport> ProgressStream) ProcessExcelStream(
         Stream stream,
+        bool enableLogging = false,
         CancellationToken cancellationToken = default);
 }

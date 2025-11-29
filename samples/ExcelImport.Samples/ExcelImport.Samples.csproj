@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Enterprise.Toolkit\Enterprise.Toolkit.Excel.Import\Enterprise.Toolkit.Excel.Import.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="EPPlus" Version="7.1.2" />
+    <PackageReference Include="ExcelDataReader" Version="3.8.0" />
+  </ItemGroup>
+
+</Project>

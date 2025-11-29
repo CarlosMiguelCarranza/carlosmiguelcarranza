@@ -4,12 +4,28 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>Enterprise.Toolkit.Excel.Import</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Carlo</Authors>
+    <Company>Carlo</Company>
+    <PackageDescription>A high-performance, observable, and extensible library for importing data from Excel files into .NET objects.</PackageDescription>
+    <RepositoryUrl>https://github.com/carlosmiguelcarranza/carlosmiguelcarranza</RepositoryUrl>
+    <PackageTags>excel;import;bulk;observable;async;performance;streaming</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ExcelDataReader" Version="3.8.0" />
     <PackageReference Include="ExcelDataReader.DataSet" Version="3.8.0" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
   </ItemGroup>
   
 </Project>

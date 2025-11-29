@@ -12,9 +12,10 @@ public class RowMapper<T> where T : class, new()
     private readonly List<(PropertyInfo Property, ColumnAttribute Column)> _columnMappings;
     private readonly PropertyInfo? _rowKeyProperty;
     private readonly PropertyInfo? _validationProperty;
+    private readonly CultureInfo _cultureInfo;
+    private readonly Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>> _typeConverters;
 
-    // A dictionary-based type converter, which is much cleaner than a large if-else block.
-    private static readonly Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>> TypeConverters = new()
+    private static readonly Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>> DefaultTypeConverters = new()
     {
         { typeof(string), (val, _) => ConvertToString(val) },
         { typeof(int), (val, culture) => ConvertToNumber<int>(val, culture, int.TryParse) },
@@ -32,13 +33,20 @@ public class RowMapper<T> where T : class, new()
         { typeof(DateTime), (val, culture) => ConvertToDateTime(val, culture) },
         { typeof(DateTime?), (val, culture) => ConvertToNullableDateTime(val, culture) }
     };
-    
-    private readonly CultureInfo _cultureInfo;
 
-    public RowMapper(CultureInfo? cultureInfo = null)
+    public RowMapper(
+        CultureInfo? cultureInfo = null, 
+        IDictionary<Type, Func<object?, CultureInfo, (object?, bool)>>? customConverters = null)
     {
         _cultureInfo = cultureInfo ?? CultureInfo.InvariantCulture;
         
+        // Initialize converters, prioritizing custom ones.
+        _typeConverters = new Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>>(customConverters ?? new Dictionary<Type, Func<object?, CultureInfo, (object?, bool)>>());
+        foreach (var defaultConverter in DefaultTypeConverters)
+        {
+            _typeConverters.TryAdd(defaultConverter.Key, defaultConverter.Value);
+        }
+
         _columnMappings = typeof(T).GetProperties()
             .Where(p => p.IsDefined(typeof(ColumnAttribute), true))
             .Select(p => (Property: p, Column: p.GetCustomAttribute<ColumnAttribute>()!))
@@ -73,7 +81,7 @@ public class RowMapper<T> where T : class, new()
                 continue;
             }
 
-            if (TypeConverters.TryGetValue(prop.PropertyType, out var converter))
+            if (_typeConverters.TryGetValue(prop.PropertyType, out var converter))
             {
                 var (convertedValue, success) = converter(cellValue, _cultureInfo);
                 if (success)
@@ -95,7 +103,7 @@ public class RowMapper<T> where T : class, new()
                 }
                 catch (Exception)
                 {
-                    result.Validation.AddError(rowNumber, prop.Name, $"No converter was found for type '{prop.PropertyType.Name}'.");
+                    result.Validation.AddError(rowNumber, prop.Name, $"No converter found for type '{prop.PropertyType.Name}'.");
                 }
             }
         }
@@ -114,25 +122,26 @@ public class RowMapper<T> where T : class, new()
     
     #region Type Conversion Helpers
 
-    private delegate bool TryParseHandler<T>(string s, NumberStyles style, IFormatProvider provider, out T result);
+    private delegate bool TryParseHandler<TValue>(string s, NumberStyles style, IFormatProvider provider, out TValue result);
 
     private static (object?, bool) ConvertToString(object? value) => (value?.ToString(), true);
 
-    private static (object?, bool) ConvertToNumber<T>(object? value, CultureInfo culture, TryParseHandler<T> handler) where T : struct
+    private static (object?, bool) ConvertToNumber<TValue>(object? value, CultureInfo culture, TryParseHandler<TValue> handler) where TValue : struct
     {
-        if (value is T number) return (number, true);
-        if (handler(value?.ToString(), NumberStyles.Any, culture, out var result))
+        if (value is TValue number) return (number, true);
+        var strValue = value?.ToString();
+        if (strValue != null && handler(strValue, NumberStyles.Any, culture, out var result))
         {
             return (result, true);
         }
-        return (default(T), false);
+        return (default(TValue), false);
     }
 
-    private static (object?, bool) ConvertToNullableNumber<T>(object? value, CultureInfo culture, TryParseHandler<T> handler) where T : struct
+    private static (object?, bool) ConvertToNullableNumber<TValue>(object? value, CultureInfo culture, TryParseHandler<TValue> handler) where TValue : struct
     {
         if (value == null || value is DBNull) return (null, true);
-        if (value is T number) return (number, true);
-        var strValue = value.ToString();
+        if (value is TValue number) return (number, true);
+        var strValue = value?.ToString();
         if (string.IsNullOrWhiteSpace(strValue)) return (null, true);
         if (handler(strValue, NumberStyles.Any, culture, out var result))
         {
@@ -174,7 +183,8 @@ public class RowMapper<T> where T : class, new()
     {
         if (value is DateTime dt) return (dt, true);
         if (value is double oaDate) return (DateTime.FromOADate(oaDate), true); // Excel stores dates as numbers
-        if (DateTime.TryParse(value?.ToString(), culture, DateTimeStyles.None, out var result))
+        var strValue = value?.ToString();
+        if (strValue != null && DateTime.TryParse(strValue, culture, DateTimeStyles.None, out var result))
         {
             return (result, true);
         }
@@ -184,7 +194,7 @@ public class RowMapper<T> where T : class, new()
     private static (object?, bool) ConvertToNullableDateTime(object? value, CultureInfo culture)
     {
         if (value == null || value is DBNull) return (null, true);
-        var strValue = value.ToString();
+        var strValue = value?.ToString();
         if (string.IsNullOrWhiteSpace(strValue)) return (null, true);
         
         var (result, success) = ConvertToDateTime(value, culture);
